@@ -16,6 +16,8 @@ Plan: plus
 Week: 37% used (resets in 4d 16h)
 ```
 
+![OpenCode footer showing Codex usage progress bars and refresh control](docs/images/quota-footer.png)
+
 ## Requirements
 
 - OpenCode V2 with CLI plugin support.
