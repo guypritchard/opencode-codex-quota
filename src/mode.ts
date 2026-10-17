@@ -1,5 +1,9 @@
 export type DisplayMode = "compact" | "bars" | "resets"
 
+export function hasActiveSession(sessionID: string | undefined): boolean {
+  return Boolean(sessionID)
+}
+
 export function refreshGlyph(refreshing: boolean): string {
   return refreshing ? "⟳" : "↻"
 }

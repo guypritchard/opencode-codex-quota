@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { createSignal } from "solid-js"
 import { resolveConfig } from "./config"
-import { nextDisplayMode, normalizeMode, refreshGlyph } from "./mode"
+import { hasActiveSession, nextDisplayMode, normalizeMode, refreshGlyph } from "./mode"
 import { formatBars, formatDetails, formatFooter, formatResets, parseQuota, type Quota } from "./quota"
 
 const REQUEST_TIMEOUT_MS = 10_000
@@ -104,7 +104,7 @@ export default Plugin.define({
     </box>
 
     context.ui.slot({ append: "home.footer.status", render: () => <Status /> })
-    context.ui.slot({ append: "prompt.footer.status", render: () => <Status /> })
+    context.ui.slot({ append: "prompt.footer.status", render: ({ sessionID }) => hasActiveSession(sessionID) ? <Status /> : null })
     context.keymap.layer(() => ({
       mode: "global",
       commands: [{
