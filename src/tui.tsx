@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { createSignal } from "solid-js"
 import { resolveConfig } from "./config"
-import { nextDisplayMode, normalizeMode } from "./mode"
+import { nextDisplayMode, normalizeMode, refreshGlyph } from "./mode"
 import { formatBars, formatDetails, formatFooter, formatResets, parseQuota, type Quota } from "./quota"
 
 const REQUEST_TIMEOUT_MS = 10_000
@@ -13,12 +13,14 @@ export default Plugin.define({
     const config = resolveConfig(context.options, process.env.OPENCODE_CODEX_QUOTA_URL)
     const [quota, setQuota] = createSignal<Quota>()
     const [state, setState] = createSignal<"loading" | "ready" | "unavailable">("loading")
+    const [refreshing, setRefreshing] = createSignal(false)
     const [settings, updateSettings] = context.storage.store("settings", { initial: { mode: "compact" } })
     const displayMode = () => normalizeMode(settings.mode)
     const toggleDisplay = async () => {
       await updateSettings((draft) => { draft.mode = nextDisplayMode(draft.mode) })
     }
     let active: AbortController | undefined
+    let requestId = 0
     let disposed = false
 
     async function refresh(force = false): Promise<Quota | undefined> {
@@ -28,6 +30,7 @@ export default Plugin.define({
         active.abort() // Manual refresh supersedes the in-flight poll.
       }
       const controller = new AbortController()
+      requestId++
       active = controller
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
       try {
@@ -73,11 +76,32 @@ export default Plugin.define({
           ? displayMode() === "bars" ? formatBars(current) : displayMode() === "resets" ? formatResets(current) : formatFooter(current)
           : "Codex loading."
     }
-    const Status = () => <text fg={statusColor()} onMouseUp={(event) => {
-      if (event.button !== 0) return
-      event.stopPropagation()
-      void toggleDisplay()
-    }}>{statusLabel()}</text>
+    const refreshFromFooter = async () => {
+      if (refreshing() || !config.endpoint || disposed) return
+      setRefreshing(true)
+      const result = refresh(true)
+      const currentRequest = requestId
+      try {
+        if (!await result && !disposed && requestId === currentRequest) {
+          context.ui.toast.show({ title: "Codex quota", message: "Refresh failed; quota unavailable", variant: "error" })
+        }
+      } finally {
+        if (!disposed) setRefreshing(false)
+      }
+    }
+    const Status = () => <box flexDirection="row">
+      <text fg={statusColor()} onMouseUp={(event) => {
+        event.stopPropagation()
+        if (event.button !== 0) return
+        void toggleDisplay()
+      }}>{statusLabel()}</text>
+      <text>  </text>
+      <text fg={statusColor()} onMouseUp={(event) => {
+        event.stopPropagation()
+        if (event.button !== 0) return
+        void refreshFromFooter()
+      }}>{refreshGlyph(refreshing())}</text>
+    </box>
 
     context.ui.slot({ append: "home.footer.status", render: () => <Status /> })
     context.ui.slot({ append: "prompt.footer.status", render: () => <Status /> })
@@ -85,7 +109,7 @@ export default Plugin.define({
       mode: "global",
       commands: [{
         id: "codex-quota.refresh",
-        title: "Refresh Codex quota",
+        title: "Refresh Codex quota (/quota details; footer ↻ refreshes in place)",
         group: "Codex",
         palette: true,
         slash: { name: "quota" },
@@ -103,7 +127,7 @@ export default Plugin.define({
         },
       }, {
         id: "codex-quota.toggle-display",
-        title: "Cycle Codex quota display (used, bars, resets)",
+        title: "Cycle Codex quota display (click quota text: used, bars, resets)",
         group: "Codex",
         palette: true,
         run: toggleDisplay,

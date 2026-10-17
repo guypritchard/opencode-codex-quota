@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { nextDisplayMode, normalizeMode } from "../src/mode"
+import { nextDisplayMode, normalizeMode, refreshGlyph } from "../src/mode"
 import { formatBars, formatDetails, formatDuration, formatFooter, formatResets, parseQuota, progressBar, usedPercent } from "../src/quota"
 
 describe("Codex quota", () => {
@@ -71,5 +71,11 @@ describe("Codex quota", () => {
     expect(nextDisplayMode("bars")).toBe("resets")
     expect(nextDisplayMode("resets")).toBe("compact")
     expect(nextDisplayMode("legacy")).toBe("bars")
+  })
+
+  test("shows an in-progress refresh glyph without changing display mode", () => {
+    expect(refreshGlyph(false)).toBe("↻")
+    expect(refreshGlyph(true)).toBe("⟳")
+    expect(nextDisplayMode("compact")).toBe("bars")
   })
 })

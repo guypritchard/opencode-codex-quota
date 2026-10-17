@@ -1,5 +1,9 @@
 export type DisplayMode = "compact" | "bars" | "resets"
 
+export function refreshGlyph(refreshing: boolean): string {
+  return refreshing ? "⟳" : "↻"
+}
+
 export function normalizeMode(mode: unknown): DisplayMode {
   return mode === "bars" || mode === "resets" ? mode : "compact"
 }

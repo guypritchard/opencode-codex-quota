@@ -1,14 +1,14 @@
 # OpenCode Codex Quota
 
-An unofficial OpenCode V2 TUI plugin showing **Codex quota used** for the 5-hour and weekly windows in the home and prompt footers. Click either footer indicator to cycle compact used percentages → graphical used progress bars → reset timing → compact. The choice persists across OpenCode restarts and is synchronized between both footers and TUI instances. By default, the display is compact. The **Cycle Codex quota display (used, bars, resets)** palette command (`codex-quota.toggle-display`) cycles the same views from the keyboard. Press `/quota` to refresh and inspect the plan, used percentages, and full reset details.
+An unofficial OpenCode V2 TUI plugin showing **Codex quota used** for the 5-hour and weekly windows in the home and prompt footers. Click the quota text in either footer to cycle compact used percentages → graphical used progress bars → reset timing → compact. The choice persists across OpenCode restarts and is synchronized between both footers and TUI instances. By default, the display is compact. The **Cycle Codex quota display** palette command (`codex-quota.toggle-display`) cycles the same views from the keyboard. Click the separate `↻` beside the text to force a refresh in place without changing the view or opening a dialog (`⟳` indicates a request in progress). Press `/quota` to force a refresh and inspect the plan, used percentages, and full reset details.
 
 ```text
-Codex used: 5h 52% · Week 37%
-(click indicator)
-Codex used: 5h [█████░░░░░] 52% · W [████░░░░░░] 37%
-(click indicator again)
-Codex resets: 5h in 2h 1m · W in 4d 16h
-(click indicator again returns to compact)
+Codex used: 5h 52% · Week 37%  ↻
+(click quota text)
+Codex used: 5h [█████░░░░░] 52% · W [████░░░░░░] 37%  ↻
+(click quota text again)
+Codex resets: 5h in 2h 1m · W in 4d 16h  ↻
+(click quota text again returns to compact; click ↻ to refresh current view)
 
 /quota
 Plan: plus
@@ -57,7 +57,7 @@ On Windows the package path can be written as `"C:/path/to/opencode-codex-quota"
 
 Set `OPENCODE_CODEX_QUOTA_URL=https://quota.example.com/api/quota` in the environment **before starting OpenCode**. `options.endpoint` overrides this variable. No endpoint is baked into the repository. If one is missing or invalid, the footer shows a configuration status and `/quota` explains how to set it; no polling occurs. Endpoints must be HTTP(S) URLs without embedded credentials. `pollIntervalMs` defaults to 120000 (2 minutes), and values below 10000 are clamped to 10000 ms.
 
-An initial request runs when the TUI starts; later requests poll at the configured interval without overlapping. The latest successful quota is kept in memory for the current TUI process; `/quota` requests a fresh value with `force=1` in the endpoint query string and displays it. If the service fails, the footer displays `Codex unavailable` until another poll succeeds. Requests time out after 10 seconds. The server entrypoint does not make quota requests, so the CLI-only view also works with remote OpenCode servers.
+An initial request runs when the TUI starts; later requests poll at the configured interval without overlapping. The latest successful quota is kept in memory for the current TUI process; both `↻` and `/quota` request a fresh value with `force=1` in the endpoint query string. The icon updates the footer without a success dialog; `/quota` displays the detailed result. Failed manual refreshes show an error toast. If the service fails, the footer displays `Codex unavailable` until another poll succeeds. Requests time out after 10 seconds. The server entrypoint does not make quota requests, so the CLI-only view also works with remote OpenCode servers.
 
 ## Endpoint response
 
