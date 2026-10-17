@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { createSignal } from "solid-js"
 import { resolveConfig } from "./config"
-import { formatDetails, formatFooter, parseQuota, type Quota } from "./quota"
+import { formatBars, formatDetails, formatFooter, parseQuota, type Quota } from "./quota"
 
 const REQUEST_TIMEOUT_MS = 10_000
 const CONFIG_HELP = "Set plugins[].options.endpoint in ~/.config/opencode/cli.json or OPENCODE_CODEX_QUOTA_URL. See README."
@@ -12,6 +12,11 @@ export default Plugin.define({
     const config = resolveConfig(context.options, process.env.OPENCODE_CODEX_QUOTA_URL)
     const [quota, setQuota] = createSignal<Quota>()
     const [state, setState] = createSignal<"loading" | "ready" | "unavailable">("loading")
+    const [settings, updateSettings] = context.storage.store("settings", { initial: { mode: "compact" } })
+    const displayMode = () => settings.mode === "bars" ? "bars" : "compact"
+    const toggleDisplay = async () => {
+      await updateSettings((draft) => { draft.mode = draft.mode === "bars" ? "compact" : "bars" })
+    }
     let active: AbortController | undefined
     let disposed = false
 
@@ -45,15 +50,15 @@ export default Plugin.define({
 
     const statusColor = () => {
       const current = quota()
-      const remaining = current?.windows.map((window) => window.remaining) ?? []
-      const lowest = remaining.length ? Math.min(...remaining) : 100
+      const used = current?.windows.map((window) => window.used) ?? []
+      const highest = used.length ? Math.max(...used) : 0
       return config.issue || (config.endpoint && state() === "unavailable")
         ? context.theme.text.feedback.error.muted
         : !config.endpoint
           ? context.theme.text.feedback.warning.base
-          : lowest <= 10
+          : highest >= 90
             ? context.theme.text.feedback.error.base
-            : lowest <= 25
+            : highest >= 75
               ? context.theme.text.feedback.warning.base
               : context.theme.text.feedback.success.base
     }
@@ -64,10 +69,14 @@ export default Plugin.define({
       return state() === "unavailable"
         ? "Codex unavailable"
         : current
-          ? formatFooter(current)
+          ? displayMode() === "bars" ? formatBars(current) : formatFooter(current)
           : "Codex loading."
     }
-    const Status = () => <text fg={statusColor()}>{statusLabel()}</text>
+    const Status = () => <text fg={statusColor()} onMouseUp={(event) => {
+      if (event.button !== 0) return
+      event.stopPropagation()
+      void toggleDisplay()
+    }}>{statusLabel()}</text>
 
     context.ui.slot({ append: "home.footer.status", render: () => <Status /> })
     context.ui.slot({ append: "prompt.footer.status", render: () => <Status /> })
@@ -91,6 +100,12 @@ export default Plugin.define({
             context.ui.toast.show({ title: "Codex quota", message: "Refresh failed; quota unavailable", variant: "error" })
           }
         },
+      }, {
+        id: "codex-quota.toggle-display",
+        title: "Toggle Codex quota display",
+        group: "Codex",
+        palette: true,
+        run: toggleDisplay,
       }],
     }))
 

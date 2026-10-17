@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { formatDetails, formatDuration, formatFooter, parseQuota, remainingPercent } from "../src/quota"
+import { formatBars, formatDetails, formatDuration, formatFooter, parseQuota, progressBar, usedPercent } from "../src/quota"
 
 describe("Codex quota", () => {
   const sample = {
@@ -14,22 +14,28 @@ describe("Codex quota", () => {
     providerUsage: { windows: [{ label: "5h", usedPercent: 52 }, { label: "Week", usedPercent: 37 }] },
   }
 
-  test("uses remaining percentages and includes plan and reset details", () => {
+  test("shows used percentages, plan and reset details", () => {
     const quota = parseQuota(sample)
-    expect(formatFooter(quota)).toBe("Codex 5h 48% · Week 63%")
+    expect(quota.windows.map((window) => window.used)).toEqual([52, 37])
+    expect(formatFooter(quota)).toBe("Codex used: 5h 52% · Week 37%")
+    expect(formatBars(quota)).toBe("Codex used: 5h [█████░░░░░] 52% · W [████░░░░░░] 37%")
     expect(formatDetails(quota)).toContain("Plan: plus")
-    expect(formatDetails(quota)).toContain("5h: 48% remaining (resets in 2h 1m")
+    expect(formatDetails(quota)).toContain("5h: 52% used (resets in 2h 1m")
+    expect(formatDetails(quota)).toContain("Week: 37% used (resets in 4d 16h")
   })
 
-  test("clamps out-of-range percentages", () => {
-    expect(remainingPercent(-20)).toBe(100)
-    expect(remainingPercent(120)).toBe(0)
-    expect(parseQuota({ ok: true, usage: { rate_limit: { primary_window: { used_percent: 150 } } } }).windows[0]?.remaining).toBe(0)
+  test("clamps and rounds used percentages and progress cells", () => {
+    expect([usedPercent(-20), usedPercent(0.5), usedPercent(52.6), usedPercent(120)]).toEqual([0, 1, 53, 100])
+    expect(parseQuota({ ok: true, usage: { rate_limit: { primary_window: { used_percent: 150 } } } }).windows[0]?.used).toBe(100)
+    expect([progressBar(-1), progressBar(4), progressBar(5), progressBar(94), progressBar(95), progressBar(120)])
+      .toEqual(["░░░░░░░░░░", "░░░░░░░░░░", "█░░░░░░░░░", "█████████░", "██████████", "██████████"])
   })
 
-  test("falls back to provider windows and tolerates one missing window", () => {
-    expect(formatFooter(parseQuota({ ok: true, providerUsage: { windows: [{ label: "5h", usedPercent: 35 }] } })))
-      .toBe("Codex 5h 65%")
+  test("falls back to provider windows and normalizes millisecond reset timestamps", () => {
+    const quota = parseQuota({ ok: true, providerUsage: { windows: [{ label: "5h", usedPercent: 35, resetAt: 1792257458000 }] } })
+    expect(formatFooter(quota)).toBe("Codex used: 5h 35%")
+    expect(quota.windows[0]?.resetAt).toBe(1792257458)
+    expect(formatDetails(quota)).toContain("resets ")
     expect(() => parseQuota({ ok: true, usage: { rate_limit: {} } })).toThrow("Quota windows unavailable")
     expect(() => parseQuota({ ok: false })).toThrow("Quota service unavailable")
   })

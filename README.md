@@ -1,14 +1,16 @@
 # OpenCode Codex Quota
 
-An unofficial OpenCode V2 TUI plugin showing **remaining Codex quota** for the 5-hour and weekly windows in the home and prompt footers. Press `/quota` to refresh and inspect the plan and reset times.
+An unofficial OpenCode V2 TUI plugin showing **Codex quota used** for the 5-hour and weekly windows in the home and prompt footers. Click either footer indicator to switch between compact percentages and graphical progress bars. The choice persists across OpenCode restarts and is synchronized between TUI instances. By default, the display is compact. The **Toggle Codex quota display** palette command (`codex-quota.toggle-display`) provides keyboard access. Press `/quota` to refresh and inspect the plan and reset times.
 
 ```text
-Codex 5h 48% · Week 63%
+Codex used: 5h 52% · Week 37%
+(click indicator)
+Codex used: 5h [█████░░░░░] 52% · W [████░░░░░░] 37%
 
 /quota
 Plan: plus
-5h: 48% remaining (resets in 2h 1m)
-Week: 63% remaining (resets in 4d 16h)
+5h: 52% used (resets in 2h 1m)
+Week: 37% used (resets in 4d 16h)
 ```
 
 ## Requirements
@@ -56,7 +58,7 @@ An initial request runs when the TUI starts; later requests poll at the configur
 
 ## Endpoint response
 
-Return JSON with `ok: true` and `usage.rate_limit.primary_window` (5h) and/or `secondary_window` (Week). The plugin calculates remaining percentages from `used_percent`; it accepts `providerUsage.windows` entries with `usedPercent` as a fallback. Reset fields are optional. For example (fictional values):
+Return JSON with `ok: true` and `usage.rate_limit.primary_window` (5h) and/or `secondary_window` (Week). The plugin displays used percentages from `used_percent`; it accepts `providerUsage.windows` entries with `usedPercent` as a fallback. Reset fields are optional. For example (fictional values):
 
 ```json
 {
@@ -71,7 +73,7 @@ Return JSON with `ok: true` and `usage.rate_limit.primary_window` (5h) and/or `s
 }
 ```
 
-The plugin stores no OAuth tokens or API credentials. Protect the quota endpoint (network access and transport), especially if it contains account-specific usage data. Do not put secrets in the URL. This project is **unofficial** and is not affiliated with OpenAI or OpenCode. The upstream Codex/ChatGPT usage endpoint and response may change; adapt your own normalization service if necessary.
+The plugin stores only the display-mode preference (`compact` or `bars`) in OpenCode durable plugin storage; it stores no OAuth tokens or API credentials. Protect the quota endpoint (network access and transport), especially if it contains account-specific usage data. Do not put secrets in the URL. This project is **unofficial** and is not affiliated with OpenAI or OpenCode. The upstream Codex/ChatGPT usage endpoint and response may change; adapt your own normalization service if necessary.
 
 ## Develop
 

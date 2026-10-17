@@ -1,7 +1,7 @@
 {
   "name": "opencode-codex-quota",
   "version": "0.1.0",
-  "description": "OpenCode TUI plugin showing remaining Codex subscription quota",
+  "description": "OpenCode TUI plugin showing used Codex subscription quota",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

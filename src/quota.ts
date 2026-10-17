@@ -1,6 +1,6 @@
 export interface QuotaWindow {
   label: string
-  remaining: number
+  used: number
   resetAfterSeconds?: number
   resetAt?: number
 }
@@ -20,8 +20,12 @@ function number(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined
 }
 
-export function remainingPercent(used: number): number {
-  return Math.round(Math.max(0, Math.min(100, 100 - used)))
+export function usedPercent(used: number): number {
+  return Math.round(Math.max(0, Math.min(100, used)))
+}
+
+function normalizeResetAt(value: number | undefined): number | undefined {
+  return value === undefined ? undefined : value > 100_000_000_000 ? value / 1000 : value
 }
 
 function windowFrom(value: unknown, label: string): QuotaWindow | undefined {
@@ -30,9 +34,9 @@ function windowFrom(value: unknown, label: string): QuotaWindow | undefined {
   if (used === undefined) return undefined
   return {
     label,
-    remaining: remainingPercent(used),
+    used: usedPercent(used),
     resetAfterSeconds: number(item?.reset_after_seconds),
-    resetAt: number(item?.reset_at) ?? number(item?.resetAt),
+    resetAt: normalizeResetAt(number(item?.reset_at) ?? number(item?.resetAt)),
   }
 }
 
@@ -74,7 +78,17 @@ export function formatDuration(seconds: number): string {
 }
 
 export function formatFooter(quota: Quota): string {
-  return `Codex ${quota.windows.map((window) => `${window.label} ${window.remaining}%`).join(" · ")}`
+  return `Codex used: ${quota.windows.map((window) => `${window.label} ${window.used}%`).join(" · ")}`
+}
+
+/** Ten cells filled in proportion to usage. */
+export function progressBar(used: number): string {
+  const filled = Math.round(usedPercent(used) / 10)
+  return "█".repeat(filled) + "░".repeat(10 - filled)
+}
+
+export function formatBars(quota: Quota): string {
+  return `Codex used: ${quota.windows.map((window) => `${window.label === "Week" ? "W" : window.label} [${progressBar(window.used)}] ${window.used}%`).join(" · ")}`
 }
 
 export function formatDetails(quota: Quota): string {
@@ -86,7 +100,7 @@ export function formatDetails(quota: Quota): string {
       ? ""
       : new Date(window.resetAt * 1000).toLocaleString()
     const note = [duration, reset].filter(Boolean).join(" · ")
-    return `${window.label}: ${window.remaining}% remaining${note ? ` (resets ${note})` : ""}`
+    return `${window.label}: ${window.used}% used${note ? ` (resets ${note})` : ""}`
   })
   return [`Plan: ${quota.plan}`, ...windows].join("\n")
 }
