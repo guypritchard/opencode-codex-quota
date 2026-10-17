@@ -1,0 +1,27 @@
+{
+  "name": "opencode-codex-quota",
+  "version": "0.1.0",
+  "description": "OpenCode TUI plugin showing remaining Codex subscription quota",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui.tsx"
+  },
+  "scripts": {
+    "test": "bun test ./test",
+    "typecheck": "tsc --noEmit",
+    "build": "bun build ./src/index.ts ./src/tui.tsx --outdir ./dist --target bun --external @opencode/plugin --external @opencode/plugin/tui --external @opentui/solid --external solid-js"
+  },
+  "dependencies": {
+    "@opencode/plugin": "^2.0.32"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.5.8",
+    "@opentui/solid": ">=0.5.8",
+    "solid-js": ">=1.9.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.11",
+    "typescript": "^5.9.3"
+  }
+}
