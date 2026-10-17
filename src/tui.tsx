@@ -1,7 +1,8 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { createSignal } from "solid-js"
 import { resolveConfig } from "./config"
-import { formatBars, formatDetails, formatFooter, parseQuota, type Quota } from "./quota"
+import { nextDisplayMode, normalizeMode } from "./mode"
+import { formatBars, formatDetails, formatFooter, formatResets, parseQuota, type Quota } from "./quota"
 
 const REQUEST_TIMEOUT_MS = 10_000
 const CONFIG_HELP = "Set plugins[].options.endpoint in ~/.config/opencode/cli.json or OPENCODE_CODEX_QUOTA_URL. See README."
@@ -13,9 +14,9 @@ export default Plugin.define({
     const [quota, setQuota] = createSignal<Quota>()
     const [state, setState] = createSignal<"loading" | "ready" | "unavailable">("loading")
     const [settings, updateSettings] = context.storage.store("settings", { initial: { mode: "compact" } })
-    const displayMode = () => settings.mode === "bars" ? "bars" : "compact"
+    const displayMode = () => normalizeMode(settings.mode)
     const toggleDisplay = async () => {
-      await updateSettings((draft) => { draft.mode = draft.mode === "bars" ? "compact" : "bars" })
+      await updateSettings((draft) => { draft.mode = nextDisplayMode(draft.mode) })
     }
     let active: AbortController | undefined
     let disposed = false
@@ -69,7 +70,7 @@ export default Plugin.define({
       return state() === "unavailable"
         ? "Codex unavailable"
         : current
-          ? displayMode() === "bars" ? formatBars(current) : formatFooter(current)
+          ? displayMode() === "bars" ? formatBars(current) : displayMode() === "resets" ? formatResets(current) : formatFooter(current)
           : "Codex loading."
     }
     const Status = () => <text fg={statusColor()} onMouseUp={(event) => {
@@ -102,7 +103,7 @@ export default Plugin.define({
         },
       }, {
         id: "codex-quota.toggle-display",
-        title: "Toggle Codex quota display",
+        title: "Cycle Codex quota display (used, bars, resets)",
         group: "Codex",
         palette: true,
         run: toggleDisplay,

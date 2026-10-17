@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { formatBars, formatDetails, formatDuration, formatFooter, parseQuota, progressBar, usedPercent } from "../src/quota"
+import { nextDisplayMode, normalizeMode } from "../src/mode"
+import { formatBars, formatDetails, formatDuration, formatFooter, formatResets, parseQuota, progressBar, usedPercent } from "../src/quota"
 
 describe("Codex quota", () => {
   const sample = {
@@ -46,5 +47,29 @@ describe("Codex quota", () => {
     expect(formatDuration(121)).toBe("2m")
     expect(formatDuration(7283)).toBe("2h 1m")
     expect(formatDuration(403282)).toBe("4d 16h")
+  })
+
+  test("shows reset countdowns for both windows", () => {
+    expect(formatResets(parseQuota(sample))).toBe("Codex resets: 5h in 2h 1m · W in 4d 16h")
+  })
+
+  test("shows local reset date when only resetAt exists and unknown when neither exists", () => {
+    const quota = parseQuota({ ok: true, usage: { rate_limit: {
+      primary_window: { used_percent: 52, reset_at: 1792257458000 },
+      secondary_window: { used_percent: 37 },
+    } } })
+    expect(quota.windows[0]?.resetAt).toBe(1792257458)
+    expect(formatResets(quota)).toBe(`Codex resets: 5h at ${new Date(1792257458000).toLocaleString()} · W unknown`)
+  })
+
+  test("cycles all display modes and treats invalid persisted values as compact", () => {
+    expect(normalizeMode("compact")).toBe("compact")
+    expect(normalizeMode("bars")).toBe("bars")
+    expect(normalizeMode("resets")).toBe("resets")
+    expect(normalizeMode("legacy")).toBe("compact")
+    expect(nextDisplayMode("compact")).toBe("bars")
+    expect(nextDisplayMode("bars")).toBe("resets")
+    expect(nextDisplayMode("resets")).toBe("compact")
+    expect(nextDisplayMode("legacy")).toBe("bars")
   })
 })

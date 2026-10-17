@@ -1,11 +1,14 @@
 # OpenCode Codex Quota
 
-An unofficial OpenCode V2 TUI plugin showing **Codex quota used** for the 5-hour and weekly windows in the home and prompt footers. Click either footer indicator to switch between compact percentages and graphical progress bars. The choice persists across OpenCode restarts and is synchronized between TUI instances. By default, the display is compact. The **Toggle Codex quota display** palette command (`codex-quota.toggle-display`) provides keyboard access. Press `/quota` to refresh and inspect the plan and reset times.
+An unofficial OpenCode V2 TUI plugin showing **Codex quota used** for the 5-hour and weekly windows in the home and prompt footers. Click either footer indicator to cycle compact used percentages → graphical used progress bars → reset timing → compact. The choice persists across OpenCode restarts and is synchronized between both footers and TUI instances. By default, the display is compact. The **Cycle Codex quota display (used, bars, resets)** palette command (`codex-quota.toggle-display`) cycles the same views from the keyboard. Press `/quota` to refresh and inspect the plan, used percentages, and full reset details.
 
 ```text
 Codex used: 5h 52% · Week 37%
 (click indicator)
 Codex used: 5h [█████░░░░░] 52% · W [████░░░░░░] 37%
+(click indicator again)
+Codex resets: 5h in 2h 1m · W in 4d 16h
+(click indicator again returns to compact)
 
 /quota
 Plan: plus
@@ -73,7 +76,7 @@ Return JSON with `ok: true` and `usage.rate_limit.primary_window` (5h) and/or `s
 }
 ```
 
-The plugin stores only the display-mode preference (`compact` or `bars`) in OpenCode durable plugin storage; it stores no OAuth tokens or API credentials. Protect the quota endpoint (network access and transport), especially if it contains account-specific usage data. Do not put secrets in the URL. This project is **unofficial** and is not affiliated with OpenAI or OpenCode. The upstream Codex/ChatGPT usage endpoint and response may change; adapt your own normalization service if necessary.
+The plugin stores only the display-mode preference (`compact`, `bars`, or `resets`) in OpenCode durable plugin storage; it stores no OAuth tokens or API credentials. Reset mode shows countdowns from `reset_after_seconds`, local date/time from `reset_at` when no countdown is supplied (Unix seconds or milliseconds accepted), and `unknown` for windows without reset metadata. Protect the quota endpoint (network access and transport), especially if it contains account-specific usage data. Do not put secrets in the URL. This project is **unofficial** and is not affiliated with OpenAI or OpenCode. The upstream Codex/ChatGPT usage endpoint and response may change; adapt your own normalization service if necessary.
 
 ## Develop
 

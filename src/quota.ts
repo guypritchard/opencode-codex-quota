@@ -91,6 +91,18 @@ export function formatBars(quota: Quota): string {
   return `Codex used: ${quota.windows.map((window) => `${window.label === "Week" ? "W" : window.label} [${progressBar(window.used)}] ${window.used}%`).join(" · ")}`
 }
 
+export function formatResets(quota: Quota): string {
+  return `Codex resets: ${quota.windows.map((window) => {
+    const label = window.label === "Week" ? "W" : window.label
+    if (window.resetAfterSeconds !== undefined) return `${label} in ${formatDuration(window.resetAfterSeconds)}`
+    if (window.resetAt !== undefined) {
+      const date = new Date(window.resetAt * 1000)
+      if (Number.isFinite(date.getTime())) return `${label} at ${date.toLocaleString()}`
+    }
+    return `${label} unknown`
+  }).join(" · ")}`
+}
+
 export function formatDetails(quota: Quota): string {
   const windows = quota.windows.map((window) => {
     const duration = window.resetAfterSeconds === undefined
