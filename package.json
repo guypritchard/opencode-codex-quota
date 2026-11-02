@@ -5,12 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tui": "./src/tui.tsx"
+    "./tui": "./src/tui.tsx",
+    "./rpc": "./src/rpc.ts"
   },
   "scripts": {
     "test": "bun test ./test",
     "typecheck": "tsc --noEmit",
-    "build": "bun build ./src/index.ts ./src/tui.tsx --outdir ./dist --target bun --external @opencode/plugin --external @opencode/plugin/tui --external @opentui/solid --external solid-js"
+    "build": "bun build ./src/index.ts ./src/tui.tsx ./src/rpc.ts --outdir ./dist --target bun --external @opencode/plugin --external @opencode/plugin/tui --external @opencode/plugin/rpc --external @opentui/solid --external solid-js"
   },
   "dependencies": {
     "@opencode/plugin": "^2.0.32"

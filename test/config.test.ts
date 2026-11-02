@@ -3,13 +3,14 @@ import { DEFAULT_POLL_INTERVAL_MS, MIN_POLL_INTERVAL_MS, resolveConfig } from ".
 
 describe("quota configuration", () => {
   test("does not assume a private endpoint", () => {
-    expect(resolveConfig({})).toEqual({ endpoint: undefined, pollIntervalMs: DEFAULT_POLL_INTERVAL_MS })
+    expect(resolveConfig({})).toEqual({ source: "rpc", endpoint: undefined, pollIntervalMs: DEFAULT_POLL_INTERVAL_MS })
   })
 
   test("CLI endpoint wins over environment endpoint", () => {
     expect(resolveConfig({ endpoint: "https://example.com/quota", pollIntervalMs: 30_000 }, "https://example.org/other"))
-      .toEqual({ endpoint: "https://example.com/quota", pollIntervalMs: 30_000 })
+      .toEqual({ source: "http", endpoint: "https://example.com/quota", pollIntervalMs: 30_000 })
     expect(resolveConfig({}, "https://example.org/quota").endpoint).toBe("https://example.org/quota")
+    expect(resolveConfig({ endpoint: "bad" }, "https://example.org/quota").issue).toContain("Invalid")
   })
 
   test("rejects invalid endpoints and clamps poll interval", () => {

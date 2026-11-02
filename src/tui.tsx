@@ -3,9 +3,11 @@ import { createSignal } from "solid-js"
 import { resolveConfig } from "./config"
 import { hasActiveSession, nextDisplayMode, normalizeMode, refreshGlyph } from "./mode"
 import { formatBars, formatDetails, formatFooter, formatResets, parseQuota, type Quota } from "./quota"
+import { CodexQuota } from "./rpc"
+import type { UsageResult } from "./source"
 
 const REQUEST_TIMEOUT_MS = 10_000
-const CONFIG_HELP = "Set plugins[].options.endpoint in ~/.config/opencode/cli.json or OPENCODE_CODEX_QUOTA_URL. See README."
+const CONFIG_HELP = "Fix the HTTP(S) endpoint in plugin options, or remove it to use local OpenCode OAuth."
 
 export default Plugin.define({
   id: "codex-quota.tui",
@@ -22,9 +24,10 @@ export default Plugin.define({
     let active: AbortController | undefined
     let requestId = 0
     let disposed = false
+    let lastError = "Refresh failed; quota unavailable"
 
     async function refresh(force = false): Promise<Quota | undefined> {
-      if (disposed || !config.endpoint) return undefined
+      if (disposed || config.issue) return undefined
       if (active) {
         if (!force) return undefined // A regular tick never overlaps another request.
         active.abort() // Manual refresh supersedes the in-flight poll.
@@ -34,16 +37,34 @@ export default Plugin.define({
       active = controller
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
       try {
-        const url = new URL(config.endpoint)
-        if (force) url.searchParams.set("force", "1")
-        const response = await fetch(url, { signal: controller.signal })
-        if (!response.ok) throw new Error("Quota service unavailable")
-        const result = parseQuota(await response.json())
+        let result: Quota
+        if (config.source === "rpc") {
+          const response = await context.client.rpc(CodexQuota).getUsage({ force }) as UsageResult
+          if (!response.ok) {
+            const messages: Record<string, string> = {
+              NO_CONNECTION: "Connect OpenAI in OpenCode to see quota", OAUTH_REQUIRED: "OpenAI OAuth is required for subscription quota",
+              AUTH_EXPIRED: "OpenAI sign-in expired", AUTH_REJECTED: "OpenAI rejected sign-in",
+              ACCESS_DENIED: "OpenAI denied quota access", RATE_LIMITED: "Quota rate limited; retry later",
+              UPSTREAM_BLOCKED: "OpenAI blocked the quota request", TIMEOUT: "Quota request timed out",
+              NETWORK_ERROR: "Quota network unavailable", INVALID_RESPONSE: "Quota response unavailable",
+            }
+            lastError = messages[response.code] ?? "Quota unavailable"
+            throw new Error("Quota unavailable")
+          }
+          result = response.usage
+        } else {
+          const url = new URL(config.endpoint!)
+          if (force) url.searchParams.set("force", "1")
+          const response = await fetch(url, { signal: controller.signal })
+          if (!response.ok) throw new Error("Quota service unavailable")
+          result = parseQuota(await response.json())
+        }
         if (disposed || active !== controller) return undefined
         setQuota(result)
         setState("ready")
         return result
       } catch {
+        if (config.source === "http") lastError = "Refresh failed; quota unavailable"
         if (!disposed && active === controller) setState("unavailable")
         return undefined
       } finally {
@@ -56,11 +77,9 @@ export default Plugin.define({
       const current = quota()
       const used = current?.windows.map((window) => window.used) ?? []
       const highest = used.length ? Math.max(...used) : 0
-      return config.issue || (config.endpoint && state() === "unavailable")
+      return config.issue || state() === "unavailable"
         ? context.theme.text.feedback.error.muted
-        : !config.endpoint
-          ? context.theme.text.feedback.warning.base
-          : highest >= 90
+        : highest >= 90
             ? context.theme.text.feedback.error.base
             : highest >= 75
               ? context.theme.text.feedback.warning.base
@@ -68,7 +87,6 @@ export default Plugin.define({
     }
     const statusLabel = () => {
       if (config.issue) return "Codex configuration invalid"
-      if (!config.endpoint) return "Codex: configure endpoint"
       const current = quota()
       return state() === "unavailable"
         ? "Codex unavailable"
@@ -77,13 +95,13 @@ export default Plugin.define({
           : "Codex loading."
     }
     const refreshFromFooter = async () => {
-      if (refreshing() || !config.endpoint || disposed) return
+      if (refreshing() || config.issue || disposed) return
       setRefreshing(true)
       const result = refresh(true)
       const currentRequest = requestId
       try {
         if (!await result && !disposed && requestId === currentRequest) {
-          context.ui.toast.show({ title: "Codex quota", message: "Refresh failed; quota unavailable", variant: "error" })
+          context.ui.toast.show({ title: "Codex quota", message: lastError, variant: "error" })
         }
       } finally {
         if (!disposed) setRefreshing(false)
@@ -114,15 +132,15 @@ export default Plugin.define({
         palette: true,
         slash: { name: "quota" },
         run: async () => {
-          if (!config.endpoint) {
-            await context.ui.dialog.alert({ title: "Codex quota setup", message: `${config.issue ?? "No endpoint configured."}\n${CONFIG_HELP}` })
+          if (config.issue) {
+            await context.ui.dialog.alert({ title: "Codex quota setup", message: `${config.issue}\n${CONFIG_HELP}` })
             return
           }
           const updated = await refresh(true)
           if (updated) {
             await context.ui.dialog.alert({ title: "Codex quota", message: formatDetails(updated) })
           } else if (!disposed) {
-            context.ui.toast.show({ title: "Codex quota", message: "Refresh failed; quota unavailable", variant: "error" })
+            context.ui.toast.show({ title: "Codex quota", message: lastError, variant: "error" })
           }
         },
       }, {
@@ -134,7 +152,7 @@ export default Plugin.define({
       }],
     }))
 
-    if (config.endpoint) {
+    if (!config.issue) {
       void refresh()
       const interval = setInterval(() => { void refresh() }, config.pollIntervalMs)
       return () => {

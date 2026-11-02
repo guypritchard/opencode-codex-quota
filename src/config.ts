@@ -1,5 +1,6 @@
 export interface QuotaConfig {
   endpoint?: string
+  source: "rpc" | "http"
   pollIntervalMs: number
   issue?: string
 }
@@ -13,7 +14,7 @@ export function resolveConfig(options: Record<string, unknown>, environmentEndpo
   let endpoint: string | undefined
   if (candidate !== undefined && candidate !== null && candidate !== "") {
     if (typeof candidate !== "string") {
-      return { pollIntervalMs: DEFAULT_POLL_INTERVAL_MS, issue: "Invalid endpoint: expected an HTTP(S) URL" }
+      return { source: "rpc", pollIntervalMs: DEFAULT_POLL_INTERVAL_MS, issue: "Invalid endpoint: expected an HTTP(S) URL" }
     }
     try {
       const url = new URL(candidate.trim())
@@ -22,7 +23,7 @@ export function resolveConfig(options: Record<string, unknown>, environmentEndpo
       }
       endpoint = url.toString()
     } catch {
-      return { pollIntervalMs: DEFAULT_POLL_INTERVAL_MS, issue: "Invalid endpoint: expected an HTTP(S) URL" }
+      return { source: "rpc", pollIntervalMs: DEFAULT_POLL_INTERVAL_MS, issue: "Invalid endpoint: expected an HTTP(S) URL" }
     }
   }
 
@@ -30,5 +31,5 @@ export function resolveConfig(options: Record<string, unknown>, environmentEndpo
   const pollIntervalMs = typeof interval === "number" && Number.isFinite(interval)
     ? Math.max(MIN_POLL_INTERVAL_MS, Math.floor(interval))
     : DEFAULT_POLL_INTERVAL_MS
-  return { endpoint, pollIntervalMs }
+  return { source: endpoint ? "http" : "rpc", endpoint, pollIntervalMs }
 }
