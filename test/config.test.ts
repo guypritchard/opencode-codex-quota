@@ -1,22 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import { DEFAULT_POLL_INTERVAL_MS, MIN_POLL_INTERVAL_MS, resolveConfig } from "../src/config"
+import { DEFAULT_POLL_INTERVAL_MS, MIN_POLL_INTERVAL_MS, resolvePollInterval } from "../src/config"
 
-describe("quota configuration", () => {
-  test("does not assume a private endpoint", () => {
-    expect(resolveConfig({})).toEqual({ source: "rpc", endpoint: undefined, pollIntervalMs: DEFAULT_POLL_INTERVAL_MS })
+describe("quota polling", () => {
+  test("defaults to two minutes and ignores unrelated options", () => {
+    expect(resolvePollInterval({})).toBe(DEFAULT_POLL_INTERVAL_MS)
+    expect(resolvePollInterval({ unrelated: "value" })).toBe(DEFAULT_POLL_INTERVAL_MS)
   })
 
-  test("CLI endpoint wins over environment endpoint", () => {
-    expect(resolveConfig({ endpoint: "https://example.com/quota", pollIntervalMs: 30_000 }, "https://example.org/other"))
-      .toEqual({ source: "http", endpoint: "https://example.com/quota", pollIntervalMs: 30_000 })
-    expect(resolveConfig({}, "https://example.org/quota").endpoint).toBe("https://example.org/quota")
-    expect(resolveConfig({ endpoint: "bad" }, "https://example.org/quota").issue).toContain("Invalid")
-  })
-
-  test("rejects invalid endpoints and clamps poll interval", () => {
-    expect(resolveConfig({ endpoint: "file:///private", pollIntervalMs: 1 }).issue).toContain("Invalid endpoint")
-    expect(resolveConfig({ endpoint: "https://user:pass@localhost" }).issue).toContain("Invalid endpoint")
-    expect(resolveConfig({ endpoint: "https://example.com", pollIntervalMs: 1 }).pollIntervalMs).toBe(MIN_POLL_INTERVAL_MS)
-    expect(resolveConfig({ pollIntervalMs: "fast" }).pollIntervalMs).toBe(DEFAULT_POLL_INTERVAL_MS)
+  test("clamps small intervals and rejects invalid values", () => {
+    expect(resolvePollInterval({ pollIntervalMs: 1 })).toBe(MIN_POLL_INTERVAL_MS)
+    expect(resolvePollInterval({ pollIntervalMs: 30_000.9 })).toBe(30_000)
+    for (const value of ["fast", null, NaN, Infinity]) {
+      expect(resolvePollInterval({ pollIntervalMs: value })).toBe(DEFAULT_POLL_INTERVAL_MS)
+    }
   })
 })

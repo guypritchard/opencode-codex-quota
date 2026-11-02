@@ -33,7 +33,7 @@ function harness(options: { connection?: unknown; credential?: unknown; response
 }
 
 describe("server quota source", () => {
-  test("fixed endpoint and exact header names; strips all secrets and extras", async () => {
+  test("fixed OpenAI upstream and exact header names; strips all secrets and extras", async () => {
     const h = harness({ responses: [json({ ...valid, email: secret, plan_type: secret, rate_limit: { ...valid.rate_limit, primary_window: { ...valid.rate_limit.primary_window, extra: secret } } })] })
     const result = await h.source()
     expect(result.ok).toBe(true)

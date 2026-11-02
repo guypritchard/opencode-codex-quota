@@ -10,59 +10,8 @@ export interface Quota {
   windows: QuotaWindow[]
 }
 
-function record(value: unknown): Record<string, unknown> | undefined {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined
-}
-
-function number(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined
-}
-
 export function usedPercent(used: number): number {
   return Math.round(Math.max(0, Math.min(100, used)))
-}
-
-function normalizeResetAt(value: number | undefined): number | undefined {
-  return value === undefined ? undefined : value > 100_000_000_000 ? value / 1000 : value
-}
-
-function windowFrom(value: unknown, label: string): QuotaWindow | undefined {
-  const item = record(value)
-  const used = number(item?.used_percent) ?? number(item?.usedPercent)
-  if (used === undefined) return undefined
-  return {
-    label,
-    used: usedPercent(used),
-    resetAfterSeconds: number(item?.reset_after_seconds),
-    resetAt: normalizeResetAt(number(item?.reset_at) ?? number(item?.resetAt)),
-  }
-}
-
-export function parseQuota(payload: unknown): Quota {
-  const root = record(payload)
-  if (root?.ok !== true) throw new Error("Quota service unavailable")
-  const usage = record(root.usage)
-  const limits = record(usage?.rate_limit)
-  const provider = record(root.providerUsage)
-  const providerWindows = Array.isArray(provider?.windows) ? provider.windows : []
-  const fallback = (label: string) =>
-    providerWindows.find((entry) => {
-      const name = record(entry)?.label
-      return typeof name === "string" && name.toLowerCase() === label.toLowerCase()
-    })
-
-  const windows = [
-    windowFrom(limits?.primary_window, "5h") ?? windowFrom(fallback("5h"), "5h"),
-    windowFrom(limits?.secondary_window, "Week") ?? windowFrom(fallback("Week"), "Week"),
-  ].filter((entry): entry is QuotaWindow => entry !== undefined)
-  if (windows.length === 0) throw new Error("Quota windows unavailable")
-
-  return {
-    plan: typeof usage?.plan_type === "string" && usage.plan_type ? usage.plan_type : "Unknown",
-    windows,
-  }
 }
 
 export function formatDuration(seconds: number): string {
